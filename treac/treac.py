@@ -4,7 +4,7 @@ import os
 import sys
 import time
 
-import bottle
+import flask
 
 import smbus
 
@@ -175,10 +175,12 @@ def main(raw_args=None):
     else:
         treadmill = AdrealinTreadmill(0x40, 1)
     treadmill.init()
-    bottle.run(host=args.host, port=args.port)
+    app.run(host=args.host, port=args.port)
+
+app = flask.Flask(__name__)
 
 
-@bottle.route("/speed/<new_speed:int>")
+@app.route("/speed/<int:new_speed>")
 def speed(new_speed):
     if new_speed > 80:
         return "Speed can't be higher than 80"
@@ -186,33 +188,20 @@ def speed(new_speed):
     return "New speed: {}\n".format(new_speed)
 
 
-@bottle.route("/slow")
-def slow():
-    treadmill.set_speed(1.0)
-    return "Speed set to slow (10)\n"
-
-
-@bottle.route("/status")
-def status():
-    return "Current speed: {}\n".format(treadmill.speed)
-
-
-@bottle.route("/stop")
-def stop():
-    treadmill.set_speed(0)
-    return "Stop\n"
-
-@bottle.route("/static/<filename:path>")
-def send_static(filename):
-    import pkg_resources
-    path = pkg_resources.resource_filename("treac", "html/" + filename)
-    return bottle.static_file(filename, root=os.path.dirname(path))
-
-@bottle.route("/")
+@app.route("/")
 def index():
     import pkg_resources
     path = pkg_resources.resource_filename("treac", "html/" + "index.html")
-    return bottle.static_file("index.html", root=os.path.dirname(path))
+    return flask.send_from_directory(os.path.dirname(path), "index.html")
+
+
+@app.route("/static/<filename>")
+def send_static(filename):
+    print(filename)
+    import pkg_resources
+    path = pkg_resources.resource_filename("treac", "html/" + filename)
+    return flask.send_from_directory(os.path.dirname(path), filename)
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

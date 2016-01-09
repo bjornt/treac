@@ -1,6 +1,6 @@
 from setuptools import setup
 
-requires = ["bottle", "pysmbus"]
+requires = ["Flask", "flask-socketio", "pysmbus"]
 
 setup(
     name="treac",

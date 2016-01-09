@@ -6,9 +6,10 @@ setup(
     name="treac",
     version="0.1",
     description="TREAC - The Treadmill Controller",
-    py_modules=["treac"],
+    packages=["treac"],
+    package_dir={"": "."},
     include_package_data=True,
-    zip_safe=True,
+    package_data={"": ["html/*"]},
     test_suite="treac",
     install_requires=requires,
     entry_points={

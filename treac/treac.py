@@ -1,5 +1,6 @@
 import argparse
 import math
+import os
 import sys
 import time
 
@@ -86,6 +87,16 @@ class PWM(object):
             self.address, self.ALL_LED_OFF_H, off >> 8)
 
 
+class FakeTreadmill(object):
+
+    def init(self):
+        pass
+
+    def set_speed(self, new_speed):
+        pass
+
+
+
 class AdrealinTreadmill(object):
 
     # The treadmill can't go lower than 1.0 km/h and not higher than 8.0
@@ -146,6 +157,8 @@ def parse_args(raw_args):
         help="The host address to bind.")
     parser.add_argument(
         "--port", type=int, default=8080, help="The port to listen on.")
+    parser.add_argument(
+        "--fake", action="store_true", default=False, help="Whether to use a fake treadmill for local testing.")
     return parser.parse_args(raw_args)
 
 
@@ -157,7 +170,10 @@ def main(raw_args=None):
         raw_args = sys.argv[1:]
     args = parse_args(raw_args)
     global treadmill
-    treadmill = AdrealinTreadmill(0x40, 1)
+    if args.fake:
+        treadmill = FakeTreadmill()
+    else:
+        treadmill = AdrealinTreadmill(0x40, 1)
     treadmill.init()
     bottle.run(host=args.host, port=args.port)
 
@@ -186,6 +202,17 @@ def stop():
     treadmill.set_speed(0)
     return "Stop\n"
 
+@bottle.route("/static/<filename:path>")
+def send_static(filename):
+    import pkg_resources
+    path = pkg_resources.resource_filename("treac", "html/" + filename)
+    return bottle.static_file(filename, root=os.path.dirname(path))
+
+@bottle.route("/")
+def index():
+    import pkg_resources
+    path = pkg_resources.resource_filename("treac", "html/" + "index.html")
+    return bottle.static_file("index.html", root=os.path.dirname(path))
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

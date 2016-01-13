@@ -2,9 +2,14 @@ import argparse
 import math
 import os
 import sys
+from threading import Timer
 import time
 
+import eventlet
+eventlet.monkey_patch()
+
 import flask
+from flask.ext.socketio import SocketIO, emit
 
 import smbus
 
@@ -90,10 +95,10 @@ class PWM(object):
 class FakeTreadmill(object):
 
     def init(self):
-        pass
+        self.speed = 0
 
     def set_speed(self, new_speed):
-        pass
+        self.speed = new_speed
 
 
 
@@ -128,10 +133,9 @@ class AdrealinTreadmill(object):
     def set_speed(self, new_speed):
         """Set the new speed of the treadmill.
 
-        @param new_speed: The new speed in kilometers/hour.
+        @param new_speed: The new speed in tenth of kilometers/hour.
         """
-        # Make it an integer to make it easier to work with.
-        new_speed = int(10 * new_speed)
+        new_speed = new_speed
         assert self.MIN_SPEED <= new_speed <= self.MAX_SPEED or new_speed == 0
         # 1 ms in the pulse represents 1 km/h.
         factor = 1.0/9.0/10
@@ -162,7 +166,59 @@ def parse_args(raw_args):
     return parser.parse_args(raw_args)
 
 
+class WorkoutState(object):
+
+    _timer = None
+    _start_time = None
+    state = "stopped"
+    default_workout_time = 5
+
+    def __init__(self):
+        self.workout_time = self.default_workout_time
+
+    def start(self):
+        self._restart()
+
+    def set_time_left(self, new_time_left):
+        if self.state == "stopped":
+            self.default_workout_time = int(new_time_left)
+        else:
+            self.workout_time = int(new_time_left)
+            self._restart()
+
+    def get_state(self):
+        return {"state": self.state, "timeLeft": self._get_time_left(),
+                "speed": treadmill.speed}
+
+    def stop(self):
+        self.state = "stopped"
+        self._timer.cancel()
+        self._timer = None
+        treadmill.set_speed(0)
+        self.workout_time = self.default_workout_time
+        print("Stopped: {}".format(self.get_state()))
+        socketio.emit("initial", self.get_state(), namespace="/api")
+
+    def _restart(self):
+        if self._timer is not None:
+            self._timer.cancel()
+            self._timer = None
+        self._start_time = time.time()
+        self.state = "running"
+        self._timer = Timer(self.workout_time, self.stop)
+        self._timer.start()
+
+    def _get_time_left(self):
+        if self.state == "stopped":
+            time_left = self.workout_time
+        else:
+            elapsed = math.floor(time.time() - self._start_time + 0.5)
+            time_left = self.workout_time - elapsed
+        return time_left
+
+
 treadmill = None
+workout = WorkoutState()
 
 
 def main(raw_args=None):
@@ -175,16 +231,18 @@ def main(raw_args=None):
     else:
         treadmill = AdrealinTreadmill(0x40, 1)
     treadmill.init()
-    app.run(host=args.host, port=args.port)
+    app.config["SECRET_KEY"] = "secret"
+    socketio.run(app, host=args.host, port=args.port)
 
 app = flask.Flask(__name__)
+socketio = SocketIO(app)
 
 
 @app.route("/speed/<int:new_speed>")
 def speed(new_speed):
     if new_speed > 80:
         return "Speed can't be higher than 80"
-    treadmill.set_speed(new_speed/10.0)
+    treadmill.set_speed(new_speed)
     return "New speed: {}\n".format(new_speed)
 
 
@@ -197,10 +255,44 @@ def index():
 
 @app.route("/static/<filename>")
 def send_static(filename):
-    print(filename)
     import pkg_resources
     path = pkg_resources.resource_filename("treac", "html/" + filename)
     return flask.send_from_directory(os.path.dirname(path), filename)
+
+
+@socketio.on('connect', namespace='/api')
+def test_connect():
+    msg = workout.get_state()
+    print('Client connected: {}'.format(msg))
+    emit('initial', msg)
+
+
+@socketio.on('disconnect', namespace='/api')
+def test_disconnect():
+    print('Client disconnected')
+
+@socketio.on('change-speed', namespace='/api')
+def change_speed(message):
+    new_speed = message["speed"]
+    if new_speed == treadmill.speed:
+        return
+    print("Changing speed to "  + str(new_speed))
+    if new_speed > 80:
+        return "Speed can't be higher than 80"
+    if workout.state == "stopped" and new_speed > 0:
+        workout.start()
+    treadmill.set_speed(new_speed)
+    emit('initial', workout.get_state())
+
+@socketio.on('change-timer', namespace='/api')
+def change_timer(message):
+    new_timer = message["timer"]
+    print("Changing timer: {}".format(new_timer))
+    workout.set_time_left(new_timer)
+    print("Workout state: {}".format(workout.get_state()))
+    emit('initial', workout.get_state())
+
+
 
 
 if __name__ == "__main__":

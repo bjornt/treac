@@ -14,9 +14,11 @@
 
     <link href="/static/nouislider.min.css" rel="stylesheet">
     <script src="/static/nouislider.min.js" data-cover></script>
+    <script src="/static/socket.io-1.4.3.js"></script>
 
   <style>
     .circle {
+        float: left;
         border-radius: 50%;
 
         width: 300px;
@@ -56,6 +58,21 @@
     #speed-slider {
         margin-top: 20px;
     }
+    #timer-slider {
+        height: 300px;
+    }
+    .below {
+        clear: both;
+        padding-top: 20px;
+    }
+    .left {
+        float: left;
+        width: 250px;
+    }
+    .right {
+        float: left;
+        padding-left: 30px;
+    }
   </style>
 
 </head>
@@ -65,16 +82,49 @@
   TREAC
   </div>
   <div class="dashboard">
+    <div class="left">&nbsp;</div>
     <div class="circle">
         <div id="speed">0.0</div>
+        <div id="timer">00:00:00</div>
     </div>
-    <div id="speed-slider">
+    <div class="right">
+        <div id="timer-slider"></div>
+    </div>
+    <div class="below">
+        <div id="speed-slider"></div>
     </div>
   </div>
+  <div id="log"></div>
 <script>
-var softSlider = document.getElementById('speed-slider');
 
-noUiSlider.create(softSlider, {
+function formatTime( seconds ) {
+    var date = new Date(null);
+    date.setSeconds(Math.round(seconds));
+    return date.toISOString().substr(11, 8);
+};
+
+var speedSlider = document.getElementById('speed-slider');
+
+var speedFormat = {
+    to: function ( value ) {
+        var newValue = value / 10.0;
+        return newValue.toFixed(1);
+    },
+    from: function ( value ) {
+        return value;
+    }
+};
+
+var timerFormat = {
+    to: function ( value ) {
+        return formatTime(value);
+    },
+    from: function ( value ) {
+        return value;
+    }
+};
+
+noUiSlider.create(speedSlider, {
     start: 0,
     connect: 'lower',
     step: 1,
@@ -85,43 +135,93 @@ noUiSlider.create(softSlider, {
     pips: {
         mode: 'values',
         values: [10, 20, 30, 40, 50, 60, 70, 80],
-        density: 1
+        density: 1,
+        format: speedFormat
     },
-    format: {
-        to: function ( value ) {
-            var newValue = value / 10.0;
-            return newValue.toFixed(1);
-        },
-        from: function ( value ) {
-            return value;
-        }
-    }
+    format: speedFormat
 });
-softSlider.noUiSlider.on('change', function ( values, handle, unencodedValues ) {
+var timerSlider = document.getElementById('timer-slider');
+
+
+noUiSlider.create(timerSlider, {
+    start: 0,
+    connect: 'lower',
+    orientation: 'vertical',
+    direction: 'rtl',
+    step: 1,
+    range: {
+        min: 0,
+        max:1800 
+    },
+    pips: {
+        mode: 'values',
+        values: [0, 300, 600, 900, 1200, 1500, 1800],
+        density: 1,
+        format: timerFormat
+    },
+    format: timerFormat
+});
+speedSlider.noUiSlider.on('change', function ( values, handle, unencodedValues ) {
     if ( unencodedValues[handle] < 10 ) {
-        softSlider.noUiSlider.set(0);
+        speedSlider.noUiSlider.set(0);
     }
     if ( unencodedValues[handle] > 80 ) {
-        softSlider.noUiSlider.set(80);
+        speedSlider.noUiSlider.set(80);
     }
 });
-softSlider.noUiSlider.on('update', function ( values, handle ) {
+speedSlider.noUiSlider.on('update', function ( values, handle ) {
     var value = values[handle];
     document.getElementById('speed').textContent = value
 });
-softSlider.noUiSlider.on('set', function ( values, handle, unencodedValues ) {
+speedSlider.noUiSlider.on('set', function ( values, handle, unencodedValues ) {
     var value = unencodedValues[handle];
     if ( value < 10 && value > 0 || value > 80) {
         return;
     }
-    var xmlHttp = new XMLHttpRequest();
-    xmlHttp.onreadystatechange = function() { 
-        if (xmlHttp.readyState == 4 && xmlHttp.status != 200) {
-            alert(xmlHttp.responseText);
+    socket.emit("change-speed", {speed: value});
+});
+
+timerSlider.noUiSlider.on('slide', function ( values, handle, unencodedValues ) {
+    isSlidingTimer = true;
+    document.getElementById('timer').textContent = values[handle]
+});
+
+timerSlider.noUiSlider.on('update', function ( values, handle, unencodedValues ) {
+    document.getElementById('timer').textContent = values[handle]
+});
+
+timerSlider.noUiSlider.on('change', function ( values, handle, unencodedValues ) {
+    isSlidingTimer = false;
+    socket.emit("change-timer", {timer: unencodedValues[handle]});
+});
+
+var socket = io.connect("/api");
+socket.on("initial", function(msg) {
+    console.log("initial: " + msg.state);
+    speedSlider.noUiSlider.set(msg.speed)
+    timerSlider.noUiSlider.set(msg.timeLeft)
+    if (msg.state == "running") {
+        workoutEnd = new Date().getTime() + msg.timeLeft * 1000;
+    } else if (msg.state == "stopped") {
+        workoutEnd = null;
+    }
+});
+socket.on("timer", function(msg) {
+    timerSlider.noUiSlider.set(msg.timeLeft)
+});
+
+var workoutEnd = null;
+var isSlidingTimer = false;
+
+function timer() {
+    if (workoutEnd !== null) {
+        var currentDate = new Date().getTime();
+        var secondsLeft = (workoutEnd - currentDate) / 1000;
+        if (!isSlidingTimer) {
+            timerSlider.noUiSlider.set(secondsLeft);
         }
     }
-    xmlHttp.open( "GET", "/speed/" + value, true );
-    xmlHttp.send( null );
-});
+};
+setInterval(timer, 1000);
 </script>
 </body>

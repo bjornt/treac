@@ -177,6 +177,7 @@ class WorkoutState(object):
         self.workout_time = self.default_workout_time
 
     def start(self):
+        self.workout_time = self.default_workout_time
         self._restart()
 
     def set_time_left(self, new_time_left):
@@ -210,7 +211,7 @@ class WorkoutState(object):
 
     def _get_time_left(self):
         if self.state == "stopped":
-            time_left = self.workout_time
+            time_left = self.default_workout_time
         else:
             elapsed = math.floor(time.time() - self._start_time + 0.5)
             time_left = self.workout_time - elapsed
@@ -290,6 +291,13 @@ def change_timer(message):
     print("Changing timer: {}".format(new_timer))
     workout.set_time_left(new_timer)
     print("Workout state: {}".format(workout.get_state()))
+    emit('initial', workout.get_state())
+
+@socketio.on('change-state', namespace='/api')
+def change_state(message):
+    print("Changing state: {}".format(message["state"]))
+    treadmill.set_speed(0)
+    workout.set_time_left(0)
     emit('initial', workout.get_state())
 
 

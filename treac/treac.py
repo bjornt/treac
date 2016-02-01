@@ -272,35 +272,20 @@ def test_connect():
 def test_disconnect():
     print('Client disconnected')
 
-@socketio.on('change-speed', namespace='/api')
-def change_speed(message):
-    new_speed = message["speed"]
-    if new_speed == treadmill.speed:
-        return
-    print("Changing speed to "  + str(new_speed))
-    if new_speed > 80:
-        return "Speed can't be higher than 80"
-    if workout.state == "stopped" and new_speed > 0:
-        workout.start()
-    treadmill.set_speed(new_speed)
-    emit('initial', workout.get_state())
-
-@socketio.on('change-timer', namespace='/api')
-def change_timer(message):
-    new_timer = message["timer"]
-    print("Changing timer: {}".format(new_timer))
-    workout.set_time_left(new_timer)
-    print("Workout state: {}".format(workout.get_state()))
-    emit('initial', workout.get_state())
-
 @socketio.on('change-state', namespace='/api')
 def change_state(message):
-    print("Changing state: {}".format(message["state"]))
-    treadmill.set_speed(0)
-    workout.set_time_left(0)
+    new_speed = message["speed"]
+    if new_speed != treadmill.speed:
+        print("Changing speed to "  + str(new_speed))
+        if new_speed > 80:
+            return "Speed can't be higher than 80"
+        if workout.state == "stopped" and new_speed > 0:
+            workout.start()
+        treadmill.set_speed(new_speed)
+    new_timer = message["timeLeft"]
+    print("Changing timer: {}".format(new_timer))
+    workout.set_time_left(new_timer)
     emit('initial', workout.get_state())
-
-
 
 
 if __name__ == "__main__":

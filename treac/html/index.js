@@ -7,8 +7,12 @@ var Workout = Backbone.Model.extend({
         updateState: function(newState) {
             console.log("update state");
             this.set(newState.attributes);
+        },
+        send: function() {
+            socket.emit("change-state", this.attributes);
         }
         });
+
 
 var serverState = new Workout({});
 var clientState = new Workout({});
@@ -19,8 +23,10 @@ clientState.on("change:speed", function(model) {
     document.getElementById('speed').textContent = speedFormat.to(speed);
     }, clientState);
 clientState.on("change:timeLeft", function(model) {
-    console.log("Changed timeLeft: " + model.get("timeLeft"));
-    timerSlider.noUiSlider.set(model.get("timeLeft"));
+    var timeLeft = model.get("timeLeft");
+    console.log("Changed timeLeft: " + timeLeft);
+    timerSlider.noUiSlider.set(timeLeft);
+    document.getElementById('timer').textContent = formatTime(timeLeft);
     }, clientState);
 
 function formatTime( seconds ) {
@@ -90,36 +96,31 @@ noUiSlider.create(timerSlider, {
 speedSlider.noUiSlider.on('change', function ( values, handle, unencodedValues ) {
     var speed = unencodedValues[handle];
     if ( speed < 10 ) {
-        speed = 0;
+        clientState.set({"speed": 0});
     }
     if ( speed > 80 ) {
-        speed = 80;
+        clientState.set({"speed": 80});
     }
-    clientState.set({"speed": speed});
+    clientState.send();
 });
 speedSlider.noUiSlider.on('update', function ( values, handle, unencodedValues ) {
     clientState.set({"speed": unencodedValues[handle]});
 });
-speedSlider.noUiSlider.on('set', function ( values, handle, unencodedValues ) {
-    var value = unencodedValues[handle];
-    if ( value < 10 && value > 0 || value > 80) {
-        return;
-    }
-    socket.emit("change-speed", {speed: value});
-});
+
 
 timerSlider.noUiSlider.on('slide', function ( values, handle, unencodedValues ) {
     isSlidingTimer = true;
+
     document.getElementById('timer').textContent = values[handle]
 });
 
 timerSlider.noUiSlider.on('update', function ( values, handle, unencodedValues ) {
-    document.getElementById('timer').textContent = values[handle]
+    clientState.set({"timeLeft": unencodedValues[handle]});
 });
 
 timerSlider.noUiSlider.on('change', function ( values, handle, unencodedValues ) {
     isSlidingTimer = false;
-    socket.emit("change-timer", {timer: unencodedValues[handle]});
+    clientState.send();
 });
 
 var socket = io.connect("/api");

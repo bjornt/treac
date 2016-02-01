@@ -116,12 +116,6 @@ speedSlider.noUiSlider.on('update', function ( values, handle, unencodedValues )
 });
 
 
-timerSlider.noUiSlider.on('slide', function ( values, handle, unencodedValues ) {
-    isSlidingTimer = true;
-
-    document.getElementById('timer').textContent = values[handle]
-});
-
 timerSlider.noUiSlider.on('update', function ( values, handle, unencodedValues ) {
     clientState.set({"timeLeft": unencodedValues[handle]});
 });
@@ -149,18 +143,7 @@ socket.on("timer", function(msg) {
 });
 
 var workoutEnd = null;
-var isSlidingTimer = false;
 
-function timer() {
-    if (workoutEnd !== null) {
-        var currentDate = new Date().getTime();
-        var secondsLeft = (workoutEnd - currentDate) / 1000;
-        if (!isSlidingTimer) {
-            clientState.set({"timeLeft": secondsLeft});
-        }
-    }
-};
-setInterval(timer, 1000);
 $( "#stop" ).on("click", function () {
     clientState.set({"state": "stopped"});
     clientState.send();

@@ -2,7 +2,6 @@ import argparse
 import math
 import os
 import sys
-from threading import Timer
 import time
 
 import eventlet
@@ -168,7 +167,6 @@ def parse_args(raw_args):
 
 class WorkoutState(object):
 
-    _timer = None
     _start_time = None
     state = "stopped"
     default_workout_time = 1800
@@ -194,34 +192,39 @@ class WorkoutState(object):
             self.stop()
 
     def get_state(self):
-        return {"state": self.state, "timeLeft": self._get_time_left(),
+        return {"state": self.state, "timeLeft": self.get_time_left(),
                 "speed": treadmill.speed}
 
     def stop(self):
         self.state = "stopped"
-        self._timer.cancel()
-        self._timer = None
         treadmill.set_speed(0)
         self.workout_time = self.default_workout_time
         print("Stopped: {}".format(self.get_state()))
         socketio.emit("initial", self.get_state(), namespace="/api")
 
     def _restart(self):
-        if self._timer is not None:
-            self._timer.cancel()
-            self._timer = None
         self._start_time = time.time()
         self.state = "running"
-        self._timer = Timer(self.workout_time, self.stop)
-        self._timer.start()
 
-    def _get_time_left(self):
+    def get_time_left(self):
         if self.state == "stopped":
             time_left = self.default_workout_time
         else:
             elapsed = math.floor(time.time() - self._start_time + 0.5)
             time_left = self.workout_time - elapsed
         return time_left
+
+
+def timer(workout):
+    while True:
+        time.sleep(1)
+        if workout.state != "running":
+            continue
+        if workout.get_time_left() <= 0:
+            workout.stop()
+        else:
+            socketio.emit(
+                "initial", workout.get_state(), namespace="/api")
 
 
 treadmill = None
@@ -233,11 +236,13 @@ def main(raw_args=None):
         raw_args = sys.argv[1:]
     args = parse_args(raw_args)
     global treadmill
+    global workout
     if args.fake:
         treadmill = FakeTreadmill()
     else:
         treadmill = AdrealinTreadmill(0x40, 1)
     treadmill.init()
+    eventlet.spawn(timer, workout=workout)
     app.config["SECRET_KEY"] = "secret"
     socketio.run(app, host=args.host, port=args.port)
 

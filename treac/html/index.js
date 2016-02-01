@@ -4,12 +4,20 @@ var Workout = Backbone.Model.extend({
             timeLeft: 0,
             state: "stopped"
         },
+        initialize: function() {
+            this.bind("change:speed", this._updateState);
+        },
         updateState: function(newState) {
             console.log("update state");
             this.set(newState.attributes);
         },
         send: function() {
             socket.emit("change-state", this.attributes);
+        },
+        _updateState: function(model) {
+            if (this.get("speed") > 0) {
+                this.set({"state": "running"});
+            }
         }
         });
 
@@ -154,5 +162,6 @@ function timer() {
 };
 setInterval(timer, 1000);
 $( "#stop" ).on("click", function () {
-    socket.emit("change-state", {"state": "stopped"});
+    clientState.set({"state": "stopped"});
+    clientState.send();
 });

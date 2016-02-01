@@ -171,7 +171,7 @@ class WorkoutState(object):
     _timer = None
     _start_time = None
     state = "stopped"
-    default_workout_time = 5
+    default_workout_time = 1800
 
     def __init__(self):
         self.workout_time = self.default_workout_time
@@ -186,6 +186,12 @@ class WorkoutState(object):
         else:
             self.workout_time = int(new_time_left)
             self._restart()
+
+    def set_state(self, new_state):
+        if self.state == new_state:
+            return
+        if new_state == "stopped":
+            self.stop()
 
     def get_state(self):
         return {"state": self.state, "timeLeft": self._get_time_left(),
@@ -285,6 +291,7 @@ def change_state(message):
     new_timer = message["timeLeft"]
     print("Changing timer: {}".format(new_timer))
     workout.set_time_left(new_timer)
+    workout.set_state(message["state"])
     emit('initial', workout.get_state())
 
 

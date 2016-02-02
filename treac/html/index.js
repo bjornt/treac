@@ -36,6 +36,17 @@ clientState.on("change:timeLeft", function(model) {
     timerSlider.noUiSlider.set(timeLeft);
     document.getElementById('timer').textContent = formatTime(timeLeft);
     }, clientState);
+clientState.on("change:state", function(model) {
+    var state = model.get("state");
+    var timer = $("#timer")
+    console.log("Changed state: " + state);
+    if (state === "paused") {
+        timer.addClass("blink");
+    }
+    else {
+        timer.removeClass("blink");
+    }
+    }, clientState);
 
 function formatTime( seconds ) {
     var date = new Date(null);

@@ -145,6 +145,6 @@ socket.on("timer", function(msg) {
 var workoutEnd = null;
 
 $( "#stop" ).on("click", function () {
-    clientState.set({"state": "stopped"});
+    clientState.set({"timeLeft": 0});
     clientState.send();
 });

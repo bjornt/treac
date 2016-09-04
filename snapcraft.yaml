@@ -1,0 +1,28 @@
+name: treac
+version: 0
+summary: TREAC - The Treadmill Controller
+description: Provides an API for controlling a treadmill on a Raspberry Pi
+confinement: strict
+
+apps:
+  treacd:
+    command: usr/bin/treacd-wrapper
+    daemon: simple
+    plugs: [network-bind]
+#  servod:
+#    command: usr/bin/servod
+#    daemon: forking
+#    uses: [listener]
+
+parts:
+    treac:
+        plugin: python3
+        source: .
+#    servoblaster:
+#        plugin: make
+#        source: git://github.com/richardghirst/PiBits.git
+#        directory: ServoBlaster/user
+#    servoblaster-install:
+#        plugin: copy
+#        files:
+#            parts/servoblaster/build/ServoBlaster/user/servod: usr/bin/servod

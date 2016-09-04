@@ -1,6 +1,6 @@
 from setuptools import setup
 
-requires = ["Flask", "flask-socketio", "eventlet", "pysmbus"]
+requires = ["Flask", "flask-socketio", "eventlet", "pysmbus", "pyyaml"]
 
 setup(
     name="treac",
@@ -14,5 +14,6 @@ setup(
     install_requires=requires,
     entry_points={
         "console_scripts": [
-            "treac = treac:main"
+            "treac = treac:main",
+            "treacd-wrapper = treac.snap:treacd_wrapper"
     ]})

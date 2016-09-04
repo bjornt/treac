@@ -93,6 +93,11 @@
     @keyframes blinker {  
           50% { opacity: 0.0; }
     }
+
+    #latest_workouts {
+        padding-top: 40px;
+        text-align: left;
+    }
   </style>
 
 </head>
@@ -114,7 +119,11 @@
     <div class="below">
         <div id="speed-slider"></div>
     </div>
+    <div id="latest_workouts">
+      <div class="header">Latest workouts</div>
+      <div class="workouts">
+      </div>
+    </div>
   </div>
-  <div id="log"></div>
   <script src="/static/index.js"></script>
 </body>

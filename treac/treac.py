@@ -165,20 +165,52 @@ def parse_args(raw_args):
     return parser.parse_args(raw_args)
 
 
+class Workout(object):
+
+    def __init__(self, time_started, time_ended=None):
+        self.time_started = time_started
+        self.time_ended = time_ended
+
+    def to_dict(self):
+        return {
+            "start_time": self.time_started,
+            "duration": self.time_ended - self.time_started}
+
+
+class Workouts(object):
+
+    def __init__(self, file_path):
+        self._file_path = file_path
+        self._workouts = []
+
+    def get_workout_dicts(self, limit=None):
+        if limit is not None:
+            return self._workouts[:limit]
+        else:
+            return list(self._workouts)
+
+    def store_workout(self, workout):
+       self._workouts.append(workout.to_dict())
+
+
+
 class WorkoutState(object):
 
     state = "stopped"
     default_workout_time = 1800
     _start_time = None
     _pause_time = None
+    _current_workout = None
 
-    def __init__(self, treadmill):
+    def __init__(self, treadmill, workouts):
         self.workout_time = self.default_workout_time
         self._treadmill = treadmill
+        self._workouts = workouts
 
     def start(self):
         self.workout_time = self.default_workout_time
         self._start_time = time.time()
+        self._current_workout = Workout(self._start_time)
         self._restart()
 
     def set_time_left(self, new_time_left):
@@ -200,8 +232,10 @@ class WorkoutState(object):
                 self._restart()
 
     def to_dict(self):
+        latest_workouts = self._workouts.get_workout_dicts(limit=10)
         return {"state": self.state, "timeLeft": self.get_time_left(),
-                "speed": self._treadmill.speed}
+                "speed": self._treadmill.speed,
+                "latest_workouts": latest_workouts}
 
     def get_state(self):
         if self._pause_time is not None:
@@ -214,6 +248,9 @@ class WorkoutState(object):
         self.state = "stopped"
         self._start_time = None
         self._treadmill.set_speed(0)
+        self._current_workout.time_ended = time.time()
+        self._workouts.store_workout(self._current_workout)
+        self._current_workout = None
         self.workout_time = self.default_workout_time
         print("Stopped: {}".format(self.to_dict()))
         socketio.emit("initial", self.to_dict(), namespace="/api")
@@ -270,7 +307,8 @@ def main(raw_args=None):
         treadmill = FakeTreadmill()
     else:
         treadmill = AdrealinTreadmill(0x40, 1)
-    workout = WorkoutState(treadmill)
+    workouts = Workouts("")
+    workout = WorkoutState(treadmill, workouts)
     treadmill.init()
     eventlet.spawn(timer, workout=workout)
     app.config["SECRET_KEY"] = "secret"
@@ -313,7 +351,7 @@ def test_connect():
 def test_disconnect():
     print('Client disconnected')
 
-@socketio.on('change-state', namespace='/api')
+@socketio.on('change_state', namespace='/api')
 def change_state(message):
     new_speed = message["speed"]
     if new_speed != treadmill.speed:

@@ -2,17 +2,19 @@ var Workout = Backbone.Model.extend({
         defaults: {
             speed: 0,
             timeLeft: 0,
-            state: "stopped"
+            state: "stopped",
+            latestWorkouts: []
         },
         initialize: function() {
             this.bind("change:speed", this._updateState);
         },
         updateState: function(newState) {
             console.log("update state");
+            console.log(newState.attributes);
             this.set(newState.attributes);
         },
         send: function() {
-            socket.emit("change-state", this.attributes);
+            socket.emit("change_state", this.attributes);
         },
         _updateState: function(model) {
             if (this.get("speed") > 0) {
@@ -46,6 +48,25 @@ clientState.on("change:state", function(model) {
     else {
         timer.removeClass("blink");
     }
+    }, clientState);
+clientState.on("change:latestWorkouts", function(model) {
+    console.log("latest workouts changed.");
+    var workouts = $("#latest_workouts .workouts");
+    var latestWorkouts = model.get("latestWorkouts")
+    workouts.empty();
+    $.each(latestWorkouts, function(index) {
+        var workout = latestWorkouts[index];
+        var startTime = new Date(workout.start_time * 1000);
+        var isoString = startTime.toISOString();
+        var date = isoString.substring(0, 10);
+        var time = isoString.substring(11, 16);
+        var duration = new Date(null);
+        duration.setSeconds(workout.duration);
+        durationString = duration.toISOString().substr(14, 5);
+        workouts.append(
+            "<div class='workout'>" + date + " " + time  + " " + durationString + "</div>");
+    });
+    console.log(workouts);
     }, clientState);
 
 function formatTime( seconds ) {
@@ -141,7 +162,8 @@ socket.on("initial", function(msg) {
     console.log("initial: " + msg.state);
     console.log("initial timeLeft: " + msg.timeLeft);
     serverState.set({
-        "speed": msg.speed, "timeLeft": msg.timeLeft, "state": msg.state});
+        "speed": msg.speed, "timeLeft": msg.timeLeft, "state": msg.state,
+        "latestWorkouts": msg.latest_workouts});
     clientState.updateState(serverState);
     if (msg.state == "running") {
         workoutEnd = new Date().getTime() + msg.timeLeft * 1000;

@@ -10,21 +10,18 @@ apps:
     command: bin/treac --port 8000 0.0.0.0
     daemon: simple
     plugs: [network-bind]
-#  servod:
-#    command: usr/bin/servod
+  servod:
+    command: ServoBlaster/user/servod
 #    daemon: forking
-#    uses: [listener]
 
 parts:
     treac:
         plugin: python
         source: .
         build-packages: [gcc]
-#    servoblaster:
-#        plugin: make
-#        source: git://github.com/richardghirst/PiBits.git
-#        directory: ServoBlaster/user
-#    servoblaster-install:
-#        plugin: copy
-#        files:
-#            parts/servoblaster/build/ServoBlaster/user/servod: usr/bin/servod
+    servoblaster:
+        plugin: make
+        source: git://github.com/richardghirst/PiBits.git
+        artifacts: [ServoBlaster/user/servod]
+        make-parameters: [-C, ServoBlaster/user]
+        build-packages: [gcc, libc6-dev]

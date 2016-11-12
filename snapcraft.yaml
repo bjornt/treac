@@ -19,6 +19,7 @@ parts:
     treac:
         plugin: python
         source: .
+        build-packages: [gcc]
 #    servoblaster:
 #        plugin: make
 #        source: git://github.com/richardghirst/PiBits.git

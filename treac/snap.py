@@ -60,7 +60,7 @@ def treacd_wrapper():
     python_path = os.path.join(
         os.environ['SNAP'], 'usr', 'bin', 'python3')
     treacd_path = os.path.join(
-        os.environ['SNAP'], 'usr', 'bin', 'treac')
+        os.environ['SNAP'], 'bin', 'treac')
     config = get_config()["config"][os.environ['SNAP_NAME']]
     subprocess.call(
         [python_path, treacd_path, "--port", str(config["port"]),

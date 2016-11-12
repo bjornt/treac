@@ -2,11 +2,12 @@ name: treac
 version: 0.1
 summary: TREAC - The Treadmill Controller
 description: Provides an API for controlling a treadmill on a Raspberry Pi
-confinement: strict
+confinement: devmode # needs i2c interface
+grade: devel
 
 apps:
   treacd:
-    command: usr/bin/treacd-wrapper
+    command: bin/treac --port 8000 0.0.0.0
     daemon: simple
     plugs: [network-bind]
 #  servod:
@@ -16,7 +17,7 @@ apps:
 
 parts:
     treac:
-        plugin: python3
+        plugin: python
         source: .
 #    servoblaster:
 #        plugin: make
